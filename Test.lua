@@ -33,7 +33,7 @@ if existingGui then
 	existingGui:Destroy()
 end
 
--- Storage Path Configuration
+-- Storage Path Configuration (Updated to v2)
 local FOLDER_NAME = "Avatar Saver v2"
 local FILE_PATH = FOLDER_NAME .. "/SavedAvatars.json"
 
@@ -45,8 +45,8 @@ end
 
 -- Screen Size & Responsive Layout Detection
 local isMobile = (Camera.ViewportSize.X < 700 or Camera.ViewportSize.Y < 500)
-local mainWidth = isMobile and 320 or 380
-local mainHeight = isMobile and 390 or 450
+local mainWidth = isMobile and 310 or 370
+local mainHeight = isMobile and 380 or 440
 
 -- State Management
 local copiedAvatars = {}
@@ -62,7 +62,7 @@ local connections = {}
 local currentActiveData = nil
 local currentConfirmAction = nil
 
--- Safe Serializers & Helpers
+-- Safe Serializers
 local function rgb(c)
 	if not c then return {r=255, g=255, b=255, IsRGBTable=true} end
 	return {
@@ -158,115 +158,6 @@ local function createCopiedProperties(desc)
 	return props
 end
 
--- Reconstruct HumanoidDescription from Saved Properties
-local function buildHumanoidDescription(props)
-	local desc = Instance.new("HumanoidDescription")
-	if not props then return desc end
-
-	pcall(function()
-		desc.Face = props.Face or 0
-		desc.Shirt = props.Shirt or 0
-		desc.Pants = props.Pants or 0
-		desc.GraphicTShirt = props.GraphicTShirt or 0
-		desc.Head = props.Head or 0
-		desc.Torso = props.Torso or 0
-		desc.LeftArm = props.LeftArm or 0
-		desc.RightArm = props.RightArm or 0
-		desc.LeftLeg = props.LeftLeg or 0
-		desc.RightLeg = props.RightLeg or 0
-
-		if props.HeadColor then desc.HeadColor = Color3.fromRGB(props.HeadColor.r, props.HeadColor.g, props.HeadColor.b) end
-		if props.TorsoColor then desc.TorsoColor = Color3.fromRGB(props.TorsoColor.r, props.TorsoColor.g, props.TorsoColor.b) end
-		if props.LeftArmColor then desc.LeftArmColor = Color3.fromRGB(props.LeftArmColor.r, props.LeftArmColor.g, props.LeftArmColor.b) end
-		if props.RightArmColor then desc.RightArmColor = Color3.fromRGB(props.RightArmColor.r, props.RightArmColor.g, props.RightArmColor.b) end
-		if props.LeftLegColor then desc.LeftLegColor = Color3.fromRGB(props.LeftLegColor.r, props.LeftLegColor.g, props.LeftLegColor.b) end
-		if props.RightLegColor then desc.RightLegColor = Color3.fromRGB(props.RightLegColor.r, props.RightLegColor.g, props.RightLegColor.b) end
-
-		desc.HatAccessory = props.HatAccessory or ""
-		desc.HairAccessory = props.HairAccessory or ""
-		desc.FaceAccessory = props.FaceAccessory or ""
-		desc.NeckAccessory = props.NeckAccessory or ""
-		desc.ShouldersAccessory = props.ShouldersAccessory or ""
-		desc.FrontAccessory = props.FrontAccessory or ""
-		desc.BackAccessory = props.BackAccessory or ""
-		desc.WaistAccessory = props.WaistAccessory or ""
-
-		desc.ProportionScale = props.ProportionScale or 0
-		desc.DepthScale = props.DepthScale or 1
-		desc.HeightScale = props.HeightScale or 1
-		desc.WidthScale = props.WidthScale or 1
-		desc.BodyTypeScale = props.BodyTypeScale or 0
-		desc.HeadScale = props.HeadScale or 1
-	end)
-
-	return desc
-end
-
--- Render Real Avatar in ViewportFrame
-local function renderAvatarPreview(parentContainer, data, isFullBody)
-	for _, child in ipairs(parentContainer:GetChildren()) do
-		if child:IsA("ViewportFrame") or child:IsA("TextLabel") then
-			child:Destroy()
-		end
-	end
-
-	local loadingLabel = Instance.new("TextLabel")
-	loadingLabel.Size = UDim2.new(1, 0, 1, 0)
-	loadingLabel.BackgroundTransparency = 1
-	loadingLabel.Text = "Loading..."
-	loadingLabel.TextColor3 = Color3.fromRGB(120, 120, 135)
-	loadingLabel.TextSize = 9
-	loadingLabel.Font = Enum.Font.Gotham
-	loadingLabel.Parent = parentContainer
-
-	local viewport = Instance.new("ViewportFrame")
-	viewport.Size = UDim2.new(1, 0, 1, 0)
-	viewport.BackgroundTransparency = 1
-	viewport.Parent = parentContainer
-
-	task.spawn(function()
-		local desc = buildHumanoidDescription(data.Properties)
-		local rigType = data.RigType or Enum.HumanoidRigType.R15
-
-		local success, model = pcall(function()
-			return Players:CreateHumanoidModelFromDescription(desc, rigType)
-		end)
-
-		if not success or not model then
-			loadingLabel.Text = "Preview N/A"
-			viewport:Destroy()
-			return
-		end
-
-		loadingLabel:Destroy()
-
-		local worldModel = Instance.new("WorldModel")
-		worldModel.Parent = viewport
-		model.Parent = worldModel
-
-		local rootPart = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") or model.PrimaryPart
-		if not rootPart then
-			model:PrimaryPart = model:FindFirstChildWhichIsA("BasePart")
-			rootPart = model.PrimaryPart
-		end
-
-		local camera = Instance.new("Camera")
-		camera.Parent = viewport
-		viewport.CurrentCamera = camera
-
-		if rootPart then
-			if isFullBody then
-				local head = model:FindFirstChild("Head") or rootPart
-				local targetPos = head.Position - Vector3.new(0, 1, 0)
-				camera.CFrame = CFrame.new(targetPos + Vector3.new(0, 0.5, 5.5), targetPos)
-			else
-				local head = model:FindFirstChild("Head") or rootPart
-				camera.CFrame = CFrame.new(head.Position + Vector3.new(0, 0.1, 2.2), head.Position)
-			end
-		end
-	end)
-end
-
 local function getAvatarSignature(properties, rigType)
 	local success, result = pcall(function()
 		return HttpService:JSONEncode({
@@ -328,7 +219,7 @@ MainCorner.CornerRadius = UDim.new(0, 8)
 MainCorner.Parent = Main
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(45, 45, 58)
+MainStroke.Color = Color3.fromRGB(45, 45, 55)
 MainStroke.Thickness = 1
 MainStroke.Parent = Main
 
@@ -468,7 +359,7 @@ Status.Parent = Main
 local ContainerOffsetY = ActionOffsetY + 48
 
 local ListContainer = Instance.new("Frame")
-ListContainer.Size = UDim2.new(1, -16, 1, -(ContainerOffsetY + 12))
+ListContainer.Size = UDim2.new(1, -16, 1, -(ContainerOffsetY + 22))
 ListContainer.Position = UDim2.new(0, 8, 0, ContainerOffsetY)
 ListContainer.BackgroundTransparency = 1
 ListContainer.ClipsDescendants = true
@@ -485,7 +376,7 @@ List.AutomaticCanvasSize = Enum.AutomaticSize.Y
 List.Parent = ListContainer
 
 local Grid = Instance.new("UIGridLayout")
-local cardCellWidth = isMobile and 90 or 108
+local cardCellWidth = isMobile and 88 or 104
 Grid.CellSize = UDim2.new(0, cardCellWidth, 0, 120)
 Grid.CellPadding = UDim2.new(0, 8, 0, 8)
 Grid.SortOrder = Enum.SortOrder.LayoutOrder
@@ -591,7 +482,7 @@ ModalClose.Font = Enum.Font.GothamBold
 ModalClose.ZIndex = 32
 ModalClose.Parent = ModalBox
 
--- Detailed Inspect Modal
+-- Detailed Inspect Modal (Dual-Pane)
 local InspectorModal = Instance.new("Frame")
 InspectorModal.Size = UDim2.new(1, 0, 1, 0)
 InspectorModal.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
@@ -634,13 +525,12 @@ local InspectCloseCorner = Instance.new("UICorner")
 InspectCloseCorner.CornerRadius = UDim.new(0, 4)
 InspectCloseCorner.Parent = InspectClose
 
--- Left Pane: Full-Body Preview Container
+-- Left Pane: Full-Body Preview Card
 local LeftPane = Instance.new("Frame")
-LeftPane.Size = UDim2.new(0.36, -4, 1, -44)
-LeftPane.Position = UDim2.new(0, 8, 0, 36)
+LeftPane.Size = UDim2.new(0.38, -6, 1, -40)
+LeftPane.Position = UDim2.new(0, 6, 0, 36)
 LeftPane.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
 LeftPane.BorderSizePixel = 0
-LeftPane.ClipsDescendants = true
 LeftPane.ZIndex = 41
 LeftPane.Parent = InspectorModal
 
@@ -648,10 +538,18 @@ local LeftCorner = Instance.new("UICorner")
 LeftCorner.CornerRadius = UDim.new(0, 6)
 LeftCorner.Parent = LeftPane
 
+local FullAvatarRender = Instance.new("ImageLabel")
+FullAvatarRender.Size = UDim2.new(1, -8, 1, -8)
+FullAvatarRender.Position = UDim2.new(0, 4, 0, 4)
+FullAvatarRender.BackgroundTransparency = 1
+FullAvatarRender.ScaleType = Enum.ScaleType.Fit
+FullAvatarRender.ZIndex = 42
+FullAvatarRender.Parent = LeftPane
+
 -- Right Pane: Profile & Asset Grid
 local RightPane = Instance.new("Frame")
-RightPane.Size = UDim2.new(0.64, -16, 1, -44)
-RightPane.Position = UDim2.new(0.36, 8, 0, 36)
+RightPane.Size = UDim2.new(0.62, -10, 1, -40)
+RightPane.Position = UDim2.new(0.38, 4, 0, 36)
 RightPane.BackgroundTransparency = 1
 RightPane.ZIndex = 41
 RightPane.Parent = InspectorModal
@@ -719,7 +617,7 @@ AssetGridList.ZIndex = 42
 AssetGridList.Parent = RightPane
 
 local AssetGridLayout = Instance.new("UIGridLayout")
-AssetGridLayout.CellSize = UDim2.new(0, 60, 0, 76)
+AssetGridLayout.CellSize = UDim2.new(0, 62, 0, 78)
 AssetGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
 AssetGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 AssetGridLayout.Parent = AssetGridList
@@ -918,16 +816,14 @@ local function populateAssetInspector(data)
 
 	ProfileName.Text = data.DisplayName or data.Name
 	ProfileUser.Text = "@" .. data.Name
-	ProfileIcon.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(data.UserId or 1) .. "&w=150&h=150"
-
-	-- Render 3D full body model of saved avatar properties
-	renderAvatarPreview(LeftPane, data, true)
+	ProfileIcon.Image = "rbxthumb://type=AvatarBust&id=" .. tostring(data.UserId or 1) .. "&w=420&h=420"
+	FullAvatarRender.Image = "rbxthumb://type=AvatarBust&id=" .. tostring(data.UserId or 1) .. "&w=420&h=420"
 
 	local function addAssetCard(assetId)
 		if not assetId or assetId == 0 or assetId == "" then return end
 
 		local AssetCard = Instance.new("Frame")
-		AssetCard.Size = UDim2.new(0, 60, 0, 76)
+		AssetCard.Size = UDim2.new(0, 62, 0, 78)
 		AssetCard.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
 		AssetCard.BorderSizePixel = 0
 		AssetCard.ZIndex = 43
@@ -938,10 +834,10 @@ local function populateAssetInspector(data)
 		CardCorner.Parent = AssetCard
 
 		local AssetThumb = Instance.new("ImageLabel")
-		AssetThumb.Size = UDim2.new(1, -6, 0, 48)
+		AssetThumb.Size = UDim2.new(1, -6, 0, 50)
 		AssetThumb.Position = UDim2.new(0, 3, 0, 3)
 		AssetThumb.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-		AssetThumb.Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=150&h=150"
+		AssetThumb.Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=420&h=420"
 		AssetThumb.ScaleType = Enum.ScaleType.Fit
 		AssetThumb.ZIndex = 44
 		AssetThumb.Parent = AssetCard
@@ -952,7 +848,7 @@ local function populateAssetInspector(data)
 
 		local CopyBtn = Instance.new("TextButton")
 		CopyBtn.Size = UDim2.new(1, -6, 0, 18)
-		CopyBtn.Position = UDim2.new(0, 3, 0, 54)
+		CopyBtn.Position = UDim2.new(0, 3, 0, 56)
 		CopyBtn.BackgroundColor3 = Color3.fromRGB(55, 95, 175)
 		CopyBtn.Text = "COPY ID"
 		CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1040,24 +936,21 @@ local function createAvatarCard(data, index)
 	Corner.Parent = Card
 
 	local CardStroke = Instance.new("UIStroke")
-	CardStroke.Color = Color3.fromRGB(45, 45, 58)
+	CardStroke.Color = Color3.fromRGB(40, 40, 50)
 	CardStroke.Thickness = 1
 	CardStroke.Parent = Card
 
-	local PreviewBox = Instance.new("Frame")
-	PreviewBox.Size = UDim2.new(1, -8, 0, 82)
-	PreviewBox.Position = UDim2.new(0, 4, 0, 4)
-	PreviewBox.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
-	PreviewBox.BorderSizePixel = 0
-	PreviewBox.ClipsDescendants = true
-	PreviewBox.Parent = Card
+	local Thumbnail = Instance.new("ImageLabel")
+	Thumbnail.Size = UDim2.new(1, -8, 0, 82)
+	Thumbnail.Position = UDim2.new(0, 4, 0, 4)
+	Thumbnail.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+	Thumbnail.Image = "rbxthumb://type=AvatarBust&id=" .. tostring(data.UserId or 1) .. "&w=420&h=420"
+	Thumbnail.ScaleType = Enum.ScaleType.Fit
+	Thumbnail.Parent = Card
 
-	local BoxCorner = Instance.new("UICorner")
-	BoxCorner.CornerRadius = UDim.new(0, 4)
-	BoxCorner.Parent = PreviewBox
-
-	-- Render 3D preview of the actual saved HumanoidDescription
-	renderAvatarPreview(PreviewBox, data, false)
+	local ThumbCorner = Instance.new("UICorner")
+	ThumbCorner.CornerRadius = UDim.new(0, 4)
+	ThumbCorner.Parent = Thumbnail
 
 	local NameLabel = Instance.new("TextLabel")
 	NameLabel.Size = UDim2.new(1, -6, 0, 26)
@@ -1304,7 +1197,7 @@ ModalDelete.Activated:Connect(function()
 		UnloadButton.Visible = false
 		Status.Visible = false
 		ListContainer.Visible = false
-	end)
+	end
 end)
 
 InspectClose.Activated:Connect(function()
@@ -1364,7 +1257,7 @@ ConfirmAction.Activated:Connect(function()
 	Status.Visible = true
 	ListContainer.Visible = true
 
-	if currentConfirmAction me then
+	if currentConfirmAction then
 		currentConfirmAction()
 		currentConfirmAction = nil
 	end
