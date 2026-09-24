@@ -811,7 +811,7 @@ local function showDiagnostics(summary, detail)
 	end)
 end
 
-local SEATED_TRY_ON_BLOCK_MESSAGE = "Cannot wear avatars while sitting at the moment because of the avatar placement glitch similar to wearing while flying and wearing while doing a forward/backward swim. The bug/glitch is under maintenance and is fixing right away. Thank you for understanding."
+local SEATED_TRY_ON_BLOCK_MESSAGE = "Please wear avatars while standing still. Cannot wear avatars while sitting at the moment because of the avatar placement glitch similar to wearing while flying and wearing while doing a forward/backward swim. The bug/glitch is under maintenance and is fixing right away. Thank you for understanding.\n\nKnightingale."
 
 local function isCharacterCurrentlySitting(character, humanoid)
 	humanoid = humanoid or (character and character:FindFirstChildOfClass("Humanoid"))
