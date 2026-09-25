@@ -1,5 +1,5 @@
 -- [[ Made by Knightingale | ScriptBlox.com ]] --
--- Official script V1.71 (71 versions and fixes loll)
+-- Official script V1.72 (72 versions and fixes loll and rising)
 
 local success, err = pcall(function()
 
@@ -30,48 +30,49 @@ local FOLDER_NAME = "Avatar Saver v2"
 local FILE_PATH = FOLDER_NAME .. "/SavedAvatars.json"
 local SCREEN_GUI_NAME = "LocalWearer_UI"
 
-local runtimeConnections = {}
-local scriptAlive = true
-local tryOnActive = false
-local localTryOnModel = nil
-local hiddenCharacterParts = {}
-local hiddenCharacterDecals = {}
-local localTryOnConnections = {}
-local localTryOnRootPart = nil
-local localTryOnGroundOffset = Vector3.zero
-local localTryOnGroundOffsetValid = false
-local localTryOnNeutralCloneFeetRootOffsetY = nil
-local localTryOnSwimOffset = Vector3.zero
-local currentVerticalOffset = Vector3.zero
-local localTryOnSeatedHipOffsetLocal = Vector3.zero
-local localTryOnSeatedHipOffsetValid = false
-local localTryOnSeatTransitionActive = false
-local localTryOnSeatTransitionStartLocal = Vector3.zero
-local localTryOnSeatTransitionStartedAt = 0
-local localTryOnSwimTransitionActive = false
-local localTryOnSwimTransitionStart = Vector3.zero
-local localTryOnSwimTransitionStartedAt = 0
-local localTryOnLastSwimming = false
-local localTryOnSeatPart = nil
-local localTryOnPositionMode = "Ground"
-local localTryOnSeatCalibrationPending = false
-local localTryOnSeatCalibrationToken = 0
-local localTryOnGroundCalibrationFrames = 0
-local localTryOnHiddenInFirstPerson = false
-local localTryOnBuilding = false
-local localTryOnBuildId = 0
-local localTryOnMissingRecoveryPending = false
-local localTryOnCollisionParts = {}
-local deathConnection = nil
-local characterAddedConnection = nil
-local searchDebounceThread = nil
-
-local activeCloneTracks = {}
-local activeCloneStopConnections = {}
-local activeCloneEmoteAnimations = {}
-local activeEmotePlayerTrack = nil
-local animPlayedConnection = nil
-local emoteAssetAnimationCache = {}
+local State = {
+	runtimeConnections = {},
+	scriptAlive = true,
+	tryOnActive = false,
+	localTryOnModel = nil,
+	hiddenCharacterParts = {},
+	hiddenCharacterDecals = {},
+	localTryOnConnections = {},
+	localTryOnRootPart = nil,
+	localTryOnGroundOffset = Vector3.zero,
+	localTryOnGroundOffsetValid = false,
+	localTryOnNeutralCloneFeetRootOffsetY = nil,
+	localTryOnSwimOffset = Vector3.zero,
+	currentVerticalOffset = Vector3.zero,
+	localTryOnSeatedHipOffsetLocal = Vector3.zero,
+	localTryOnSeatedHipOffsetValid = false,
+	localTryOnSeatTransitionActive = false,
+	localTryOnSeatTransitionStartLocal = Vector3.zero,
+	localTryOnSeatTransitionStartedAt = 0,
+	localTryOnSwimTransitionActive = false,
+	localTryOnSwimTransitionStart = Vector3.zero,
+	localTryOnSwimTransitionStartedAt = 0,
+	localTryOnLastSwimming = false,
+	localTryOnSeatPart = nil,
+	localTryOnPositionMode = "Ground",
+	localTryOnSeatCalibrationPending = false,
+	localTryOnSeatCalibrationToken = 0,
+	localTryOnGroundCalibrationFrames = 0,
+	localTryOnHiddenInFirstPerson = false,
+	localTryOnBuilding = false,
+	localTryOnBuildId = 0,
+	localTryOnMissingRecoveryPending = false,
+	localTryOnCollisionParts = {},
+	deathConnection = nil,
+	characterAddedConnection = nil,
+	searchDebounceThread = nil,
+	activeCloneTracks = {},
+	activeCloneStopConnections = {},
+	activeCloneEmoteAnimations = {},
+	activeEmotePlayerTrack = nil,
+	animPlayedConnection = nil,
+	emoteAssetAnimationCache = {},
+}
 
 local function parseAssetId(val)
 	if not val then return nil end
@@ -234,7 +235,7 @@ end
 
 local function wire(signal, callback)
 	local connection = signal:Connect(callback)
-	runtimeConnections[#runtimeConnections + 1] = connection
+	State.runtimeConnections[#State.runtimeConnections + 1] = connection
 	return connection
 end
 
@@ -247,45 +248,45 @@ local function disconnectConnection(connection)
 end
 
 local function setLocalTryOnConnection(name, signal, callback)
-	disconnectConnection(localTryOnConnections[name])
+	disconnectConnection(State.localTryOnConnections[name])
 	if signal and callback then
-		localTryOnConnections[name] = signal:Connect(callback)
+		State.localTryOnConnections[name] = signal:Connect(callback)
 	else
-		localTryOnConnections[name] = nil
+		State.localTryOnConnections[name] = nil
 	end
-	return localTryOnConnections[name]
+	return State.localTryOnConnections[name]
 end
 
 local function disconnectLocalTryOnConnections()
-	for name, connection in pairs(localTryOnConnections) do
+	for name, connection in pairs(State.localTryOnConnections) do
 		disconnectConnection(connection)
-		localTryOnConnections[name] = nil
+		State.localTryOnConnections[name] = nil
 	end
-	table.clear(localTryOnCollisionParts)
+	table.clear(State.localTryOnCollisionParts)
 end
 
 local function resetLocalTryOnState()
-	localTryOnRootPart = nil
-	localTryOnGroundOffset = Vector3.zero
-	localTryOnGroundOffsetValid = false
-	localTryOnNeutralCloneFeetRootOffsetY = nil
-	localTryOnSwimOffset = Vector3.zero
-	currentVerticalOffset = Vector3.zero
-	localTryOnSeatedHipOffsetLocal = Vector3.zero
-	localTryOnSeatedHipOffsetValid = false
-	localTryOnSeatTransitionActive = false
-	localTryOnSeatTransitionStartLocal = Vector3.zero
-	localTryOnSeatTransitionStartedAt = 0
-	localTryOnSwimTransitionActive = false
-	localTryOnSwimTransitionStart = Vector3.zero
-	localTryOnSwimTransitionStartedAt = 0
-	localTryOnLastSwimming = false
-	localTryOnSeatPart = nil
-	localTryOnPositionMode = "Ground"
-	localTryOnSeatCalibrationPending = false
-	localTryOnSeatCalibrationToken = localTryOnSeatCalibrationToken + 1
-	localTryOnGroundCalibrationFrames = 0
-	localTryOnHiddenInFirstPerson = false
+	State.localTryOnRootPart = nil
+	State.localTryOnGroundOffset = Vector3.zero
+	State.localTryOnGroundOffsetValid = false
+	State.localTryOnNeutralCloneFeetRootOffsetY = nil
+	State.localTryOnSwimOffset = Vector3.zero
+	State.currentVerticalOffset = Vector3.zero
+	State.localTryOnSeatedHipOffsetLocal = Vector3.zero
+	State.localTryOnSeatedHipOffsetValid = false
+	State.localTryOnSeatTransitionActive = false
+	State.localTryOnSeatTransitionStartLocal = Vector3.zero
+	State.localTryOnSeatTransitionStartedAt = 0
+	State.localTryOnSwimTransitionActive = false
+	State.localTryOnSwimTransitionStart = Vector3.zero
+	State.localTryOnSwimTransitionStartedAt = 0
+	State.localTryOnLastSwimming = false
+	State.localTryOnSeatPart = nil
+	State.localTryOnPositionMode = "Ground"
+	State.localTryOnSeatCalibrationPending = false
+	State.localTryOnSeatCalibrationToken = State.localTryOnSeatCalibrationToken + 1
+	State.localTryOnGroundCalibrationFrames = 0
+	State.localTryOnHiddenInFirstPerson = false
 end
 
 local function vector3FromSaved(value, fallback)
@@ -308,38 +309,38 @@ local function getEnumRigType(value)
 end
 
 local function stopAllCloneTracks(fadeTime)
-	for _, stoppedConnection in pairs(activeCloneStopConnections) do
+	for _, stoppedConnection in pairs(State.activeCloneStopConnections) do
 		disconnectConnection(stoppedConnection)
 	end
-	table.clear(activeCloneStopConnections)
+	table.clear(State.activeCloneStopConnections)
 
-	for playerTrack, cloneTrack in pairs(activeCloneTracks) do
+	for playerTrack, cloneTrack in pairs(State.activeCloneTracks) do
 		pcall(function() cloneTrack:Stop(fadeTime or 0.05) end)
-		local animation = activeCloneEmoteAnimations[playerTrack]
+		local animation = State.activeCloneEmoteAnimations[playerTrack]
 		if animation then pcall(function() animation:Destroy() end) end
-		activeCloneEmoteAnimations[playerTrack] = nil
+		State.activeCloneEmoteAnimations[playerTrack] = nil
 	end
-	table.clear(activeCloneTracks)
-	table.clear(activeCloneEmoteAnimations)
-	activeEmotePlayerTrack = nil
+	table.clear(State.activeCloneTracks)
+	table.clear(State.activeCloneEmoteAnimations)
+	State.activeEmotePlayerTrack = nil
 end
 
 local function cleanupAnimationSync()
 	stopAllCloneTracks()
-	disconnectConnection(animPlayedConnection)
-	animPlayedConnection = nil
+	disconnectConnection(State.animPlayedConnection)
+	State.animPlayedConnection = nil
 end
 
 local function cleanup()
-	scriptAlive = false
-	localTryOnBuildId = localTryOnBuildId + 1
-	localTryOnBuilding = false
-	tryOnActive = false
+	State.scriptAlive = false
+	State.localTryOnBuildId = State.localTryOnBuildId + 1
+	State.localTryOnBuilding = false
+	State.tryOnActive = false
 	cleanupAnimationSync()
 
-	if searchDebounceThread then
-		task.cancel(searchDebounceThread)
-		searchDebounceThread = nil
+	if State.searchDebounceThread then
+		task.cancel(State.searchDebounceThread)
+		State.searchDebounceThread = nil
 	end
 
 	previewQueueGeneration = previewQueueGeneration + 1
@@ -348,38 +349,38 @@ local function cleanup()
 	table.clear(previewStates)
 	previewQueueRunning = false
 
-	disconnectConnection(deathConnection)
-	deathConnection = nil
-	disconnectConnection(characterAddedConnection)
-	characterAddedConnection = nil
+	disconnectConnection(State.deathConnection)
+	State.deathConnection = nil
+	disconnectConnection(State.characterAddedConnection)
+	State.characterAddedConnection = nil
 	disconnectLocalTryOnConnections()
 
-	pcall(function() if localTryOnModel then localTryOnModel:Destroy() end end)
-	localTryOnModel = nil
+	pcall(function() if State.localTryOnModel then State.localTryOnModel:Destroy() end end)
+	State.localTryOnModel = nil
 	resetLocalTryOnState()
 
-	for part, oldTransparency in pairs(hiddenCharacterParts) do
+	for part, oldTransparency in pairs(State.hiddenCharacterParts) do
 		pcall(function()
 			if part and part.Parent then
 				part.LocalTransparencyModifier = oldTransparency
 			end
 		end)
 	end
-	table.clear(hiddenCharacterParts)
+	table.clear(State.hiddenCharacterParts)
 
-	for decal, oldTransparency in pairs(hiddenCharacterDecals) do
+	for decal, oldTransparency in pairs(State.hiddenCharacterDecals) do
 		pcall(function()
 			if decal and decal.Parent then
 				decal.Transparency = oldTransparency
 			end
 		end)
 	end
-	table.clear(hiddenCharacterDecals)
+	table.clear(State.hiddenCharacterDecals)
 
-	for _, connection in ipairs(runtimeConnections) do
+	for _, connection in ipairs(State.runtimeConnections) do
 		disconnectConnection(connection)
 	end
-	table.clear(runtimeConnections)
+	table.clear(State.runtimeConnections)
 
 	pcall(function()
 		local roots = {}
@@ -408,7 +409,7 @@ pcall(function()
 end)
 
 cleanup()
-scriptAlive = true
+State.scriptAlive = true
 
 pcall(function()
 	if type(getgenv) == "function" then
@@ -699,10 +700,10 @@ addCorner(WearButton, 6)
 addStroke(WearButton, Color3.fromRGB(60, 62, 78), 1)
 
 local function updateWearButtonState()
-	local isActive = tryOnActive or (localTryOnModel ~= nil)
+	local isActive = State.tryOnActive or (State.localTryOnModel ~= nil)
 	local baseCol = isActive and GREEN_NORMAL or BLUE_NORMAL
 	WearButton.BackgroundColor3 = baseCol
-	if localTryOnBuilding then
+	if State.localTryOnBuilding then
 		WearButton.Text = "..."
 	else
 		WearButton.Text = isActive and "ACTIVE (TAP TO UNDO)" or "TRY ON AVATAR"
@@ -710,13 +711,13 @@ local function updateWearButtonState()
 end
 
 wire(WearButton.MouseEnter, function()
-	local isActive = tryOnActive or (localTryOnModel ~= nil)
+	local isActive = State.tryOnActive or (State.localTryOnModel ~= nil)
 	local hoverCol = isActive and GREEN_HOVER or BLUE_HOVER
 	TweenService:Create(WearButton, TweenInfo.new(0.15), {BackgroundColor3 = hoverCol}):Play()
 end)
 
 wire(WearButton.MouseLeave, function()
-	local isActive = tryOnActive or (localTryOnModel ~= nil)
+	local isActive = State.tryOnActive or (State.localTryOnModel ~= nil)
 	local baseCol = isActive and GREEN_NORMAL or BLUE_NORMAL
 	TweenService:Create(WearButton, TweenInfo.new(0.15), {BackgroundColor3 = baseCol}):Play()
 end)
@@ -811,7 +812,7 @@ local function showDiagnostics(summary, detail)
 	end)
 end
 
-local SEATED_TRY_ON_BLOCK_MESSAGE = "Please wear avatars while standing still. Cannot wear avatars while sitting at the moment because of the avatar placement glitch similar to wearing while flying and wearing while doing a forward/backward swim. The bug/glitch is under maintenance and is fixing right away. Thank you for understanding.\n\nKnightingale."
+local SEATED_TRY_ON_BLOCK_MESSAGE = "Cannot wear avatars while sitting at the moment because of the avatar placement glitch similar to wearing while flying and wearing while doing a forward/backward swim. The bug/glitch is under maintenance and is fixing right away. Thank you for understanding."
 
 local function isCharacterCurrentlySitting(character, humanoid)
 	humanoid = humanoid or (character and character:FindFirstChildOfClass("Humanoid"))
@@ -1285,8 +1286,8 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 		local parsed = parseAssetId(catalogAssetId)
 		if not parsed then return nil end
 		local key = tostring(parsed)
-		if emoteAssetAnimationCache[key] ~= nil then
-			return emoteAssetAnimationCache[key]
+		if State.emoteAssetAnimationCache[key] ~= nil then
+			return State.emoteAssetAnimationCache[key]
 		end
 
 		local animationId = nil
@@ -1315,7 +1316,7 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 		end
 
 		if animationId then
-			emoteAssetAnimationCache[key] = animationId
+			State.emoteAssetAnimationCache[key] = animationId
 		end
 		return animationId
 	end
@@ -1545,7 +1546,7 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 		task.spawn(function()
 			for _ = 1, 4 do
 				RunService.Heartbeat:Wait()
-				if not scriptAlive then return end
+				if not State.scriptAlive then return end
 				if applyPhase() then return end
 			end
 		end)
@@ -1660,14 +1661,14 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 			return false
 		end
 
-		activeCloneTracks[playerTrack] = cloneTrack
-		activeCloneEmoteAnimations[playerTrack] = animationObject
-		activeEmotePlayerTrack = playerTrack
+		State.activeCloneTracks[playerTrack] = cloneTrack
+		State.activeCloneEmoteAnimations[playerTrack] = animationObject
+		State.activeEmotePlayerTrack = playerTrack
 
 		local stoppedConnection
 		stoppedConnection = playerTrack.Stopped:Connect(function()
 			task.delay(0.12, function()
-				if not scriptAlive or activeEmotePlayerTrack ~= playerTrack then return end
+				if not State.scriptAlive or State.activeEmotePlayerTrack ~= playerTrack then return end
 				if playerAnimator then
 					for _, replacementTrack in ipairs(playerAnimator:GetPlayingAnimationTracks()) do
 						if replacementTrack and replacementTrack.IsPlaying then
@@ -1680,28 +1681,28 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 					end
 				end
 
-				local active = activeCloneTracks[playerTrack]
-				activeCloneTracks[playerTrack] = nil
-				activeCloneStopConnections[playerTrack] = nil
-				local activeAnimation = activeCloneEmoteAnimations[playerTrack]
-				activeCloneEmoteAnimations[playerTrack] = nil
+				local active = State.activeCloneTracks[playerTrack]
+				State.activeCloneTracks[playerTrack] = nil
+				State.activeCloneStopConnections[playerTrack] = nil
+				local activeAnimation = State.activeCloneEmoteAnimations[playerTrack]
+				State.activeCloneEmoteAnimations[playerTrack] = nil
 				if active then pcall(function() active:Stop(0.08) end) end
 				if activeAnimation then pcall(function() activeAnimation:Destroy() end) end
 				disconnectConnection(stoppedConnection)
-				if activeEmotePlayerTrack == playerTrack then activeEmotePlayerTrack = nil end
+				if State.activeEmotePlayerTrack == playerTrack then State.activeEmotePlayerTrack = nil end
 			end)
 		end)
 
-		activeCloneStopConnections[playerTrack] = stoppedConnection
+		State.activeCloneStopConnections[playerTrack] = stoppedConnection
 		return true
 	end
 
 	catchEmoteTrack = function(playerTrack)
 		if not playerTrack or not playerTrack.IsPlaying then return false end
-		if activeCloneTracks[playerTrack] then return true end
+		if State.activeCloneTracks[playerTrack] then return true end
 		local emoteName, isKnownEmote = resolvePlayerEmoteName(playerTrack)
 		if not emoteName then return false end
-		if next(activeCloneTracks) ~= nil and activeEmotePlayerTrack ~= playerTrack and not isKnownEmote then
+		if next(State.activeCloneTracks) ~= nil and State.activeEmotePlayerTrack ~= playerTrack and not isKnownEmote then
 			return false
 		end
 		local directR15 = (emoteName == "__direct_r15_emote_track__")
@@ -1712,7 +1713,7 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 		for _, track in ipairs(playerAnimator:GetPlayingAnimationTracks()) do
 			task.defer(catchEmoteTrack, track)
 		end
-		animPlayedConnection = playerAnimator.AnimationPlayed:Connect(function(playerTrack)
+		State.animPlayedConnection = playerAnimator.AnimationPlayed:Connect(function(playerTrack)
 			task.defer(catchEmoteTrack, playerTrack)
 		end)
 	end
@@ -1745,7 +1746,7 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 	local activeKey = nil
 
 	return function()
-		if not scriptAlive or not cloneModel or not cloneModel.Parent then return end
+		if not State.scriptAlive or not cloneModel or not cloneModel.Parent then return end
 
 		local playerRoot = playerCharacter:FindFirstChild("HumanoidRootPart") or playerCharacter.PrimaryPart
 		local moveSpeed, verticalVel, totalVel = 0, 0, 0
@@ -1765,9 +1766,9 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 		local state = playerHumanoid and playerHumanoid:GetState()
 		local isSeated = playerHumanoid and (playerHumanoid.Sit or playerHumanoid.SeatPart ~= nil or state == Enum.HumanoidStateType.Seated) or false
 
-		if not isR6 and activeEmotePlayerTrack then
-			local activePlayerEmoteTrack = activeEmotePlayerTrack
-			local activeCloneEmoteTrack = activeCloneTracks[activePlayerEmoteTrack]
+		if not isR6 and State.activeEmotePlayerTrack then
+			local activePlayerEmoteTrack = State.activeEmotePlayerTrack
+			local activeCloneEmoteTrack = State.activeCloneTracks[activePlayerEmoteTrack]
 			if activePlayerEmoteTrack.IsPlaying and activeCloneEmoteTrack and activeCloneEmoteTrack.IsPlaying then
 				pcall(function() activeCloneEmoteTrack.Looped = true end)
 			end
@@ -1781,7 +1782,7 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 			or state == Enum.HumanoidStateType.Climbing
 			or state == Enum.HumanoidStateType.Swimming
 
-		if shouldReleaseEmote and next(activeCloneTracks) ~= nil then
+		if shouldReleaseEmote and next(State.activeCloneTracks) ~= nil then
 			stopAllCloneTracks(0.08)
 		end
 
@@ -1892,7 +1893,7 @@ local function bindAnimationSync(playerCharacter, cloneModel, savedProps, rigTyp
 end
 
 local function queuePreview(card, data)
-	if not scriptAlive or not card or not data or not card.Parent then return end
+	if not State.scriptAlive or not card or not data or not card.Parent then return end
 	local state = previewStates[data]
 	if state == "queued" or state == "loading" or state == "ready" then return end
 
@@ -2006,7 +2007,7 @@ local function renderPreview(card, data)
 	end
 
 	for attempt = 1, 3 do
-		if not scriptAlive or not card.Parent then return false end
+		if not State.scriptAlive or not card.Parent then return false end
 
 		local viewport, worldModel, camera = createPreviewViewport(previewContainer)
 		if not viewport then return false end
@@ -2041,7 +2042,7 @@ local function processPreviewQueue()
 	if previewQueueRunning then return end
 	previewQueueRunning = true
 
-	while scriptAlive and #previewQueue > 0 do
+	while State.scriptAlive and #previewQueue > 0 do
 		local taskData = table.remove(previewQueue, 1)
 		if taskData and taskData.Generation == previewQueueGeneration then
 			local card = taskData.Card
@@ -2204,19 +2205,19 @@ local function populateAvatarList()
 end
 
 local function restoreLocalCharacter()
-	for part, oldTransparency in pairs(hiddenCharacterParts) do
+	for part, oldTransparency in pairs(State.hiddenCharacterParts) do
 		pcall(function()
 			if part and part.Parent then part.LocalTransparencyModifier = oldTransparency end
 		end)
 	end
-	table.clear(hiddenCharacterParts)
+	table.clear(State.hiddenCharacterParts)
 
-	for decal, oldTransparency in pairs(hiddenCharacterDecals) do
+	for decal, oldTransparency in pairs(State.hiddenCharacterDecals) do
 		pcall(function()
 			if decal and decal.Parent then decal.Transparency = oldTransparency end
 		end)
 	end
-	table.clear(hiddenCharacterDecals)
+	table.clear(State.hiddenCharacterDecals)
 end
 
 local function destroyOrphanedLocalTryOnModels(exceptModel)
@@ -2228,17 +2229,17 @@ local function destroyOrphanedLocalTryOnModels(exceptModel)
 end
 
 local function stopLocalTryOn(preserveActiveState)
-	localTryOnBuildId = localTryOnBuildId + 1
-	localTryOnBuilding = false
-	localTryOnMissingRecoveryPending = false
-	if not preserveActiveState then tryOnActive = false end
+	State.localTryOnBuildId = State.localTryOnBuildId + 1
+	State.localTryOnBuilding = false
+	State.localTryOnMissingRecoveryPending = false
+	if not preserveActiveState then State.tryOnActive = false end
 
 	cleanupAnimationSync()
 	disconnectLocalTryOnConnections()
 
-	if localTryOnModel then
-		pcall(function() localTryOnModel:Destroy() end)
-		localTryOnModel = nil
+	if State.localTryOnModel then
+		pcall(function() State.localTryOnModel:Destroy() end)
+		State.localTryOnModel = nil
 	end
 
 	destroyOrphanedLocalTryOnModels(nil)
@@ -2321,13 +2322,13 @@ local function hideCharacterInstance(instance)
 	if isExternalCharacterAttachment(instance, character) then return end
 
 	if instance:IsA("BasePart") then
-		if hiddenCharacterParts[instance] == nil then
-			hiddenCharacterParts[instance] = instance.LocalTransparencyModifier
+		if State.hiddenCharacterParts[instance] == nil then
+			State.hiddenCharacterParts[instance] = instance.LocalTransparencyModifier
 		end
 		instance.LocalTransparencyModifier = 1
 	elseif instance:IsA("Decal") or instance:IsA("Texture") then
-		if hiddenCharacterDecals[instance] == nil then
-			hiddenCharacterDecals[instance] = instance.Transparency
+		if State.hiddenCharacterDecals[instance] == nil then
+			State.hiddenCharacterDecals[instance] = instance.Transparency
 		end
 		instance.Transparency = 1
 	end
@@ -2342,12 +2343,12 @@ local function hideCharacterLocally(character)
 end
 
 local function enforceCharacterHidden()
-	for part in pairs(hiddenCharacterParts) do
+	for part in pairs(State.hiddenCharacterParts) do
 		if part and part.Parent and part.LocalTransparencyModifier ~= 1 then
 			part.LocalTransparencyModifier = 1
 		end
 	end
-	for decal in pairs(hiddenCharacterDecals) do
+	for decal in pairs(State.hiddenCharacterDecals) do
 		if decal and decal.Parent and decal.Transparency ~= 1 then
 			decal.Transparency = 1
 		end
@@ -2366,10 +2367,10 @@ local function isFirstPersonCamera(character)
 end
 
 local function setLocalTryOnFirstPersonVisibility(hidden)
-	if not localTryOnModel or localTryOnHiddenInFirstPerson == hidden then return end
-	localTryOnHiddenInFirstPerson = hidden
+	if not State.localTryOnModel or State.localTryOnHiddenInFirstPerson == hidden then return end
+	State.localTryOnHiddenInFirstPerson = hidden
 
-	for _, instance in ipairs(localTryOnModel:GetDescendants()) do
+	for _, instance in ipairs(State.localTryOnModel:GetDescendants()) do
 		if instance:IsA("BasePart") then
 			instance.LocalTransparencyModifier = hidden and 1 or 0
 		elseif instance:IsA("Decal") or instance:IsA("Texture") then
@@ -2380,7 +2381,7 @@ end
 
 local function disableLocalTryOnCollision(instance)
 	if not instance or not instance:IsA("BasePart") then return end
-	localTryOnCollisionParts[instance] = true
+	State.localTryOnCollisionParts[instance] = true
 	pcall(function()
 		if instance.CanCollide then instance.CanCollide = false end
 		if instance.CanTouch then instance.CanTouch = false end
@@ -2390,7 +2391,7 @@ local function disableLocalTryOnCollision(instance)
 end
 
 local function enforceLocalTryOnNoCollision()
-	for instance in pairs(localTryOnCollisionParts) do
+	for instance in pairs(State.localTryOnCollisionParts) do
 		if instance and instance.Parent then
 			pcall(function()
 				if instance.CanCollide then instance.CanCollide = false end
@@ -2399,7 +2400,7 @@ local function enforceLocalTryOnNoCollision()
 				if not instance.Massless then instance.Massless = true end
 			end)
 		else
-			localTryOnCollisionParts[instance] = nil
+			State.localTryOnCollisionParts[instance] = nil
 		end
 	end
 end
@@ -2504,10 +2505,10 @@ local function calculateGroundOffsetFromCurrentPlacement(character, model, curre
 end
 
 local function calculateGroundOffsetFromNeutralCloneFeet(character, characterRoot)
-	if not character or not characterRoot or localTryOnNeutralCloneFeetRootOffsetY == nil then return nil end
+	if not character or not characterRoot or State.localTryOnNeutralCloneFeetRootOffsetY == nil then return nil end
 	local characterFeetY = getFeetBottomY(character)
 	if not characterFeetY then return nil end
-	return Vector3.new(0, characterFeetY - characterRoot.Position.Y - localTryOnNeutralCloneFeetRootOffsetY, 0)
+	return Vector3.new(0, characterFeetY - characterRoot.Position.Y - State.localTryOnNeutralCloneFeetRootOffsetY, 0)
 end
 
 local function getLocalTryOnHipReference(model)
@@ -2549,7 +2550,7 @@ local function getLocalTryOnHipReference(model)
 end
 
 local function calculateLocalTryOnSeatedHipOffset(character, model, currentOffset)
-	if not scriptAlive or not model or model ~= localTryOnModel or not model:IsDescendantOf(Workspace) then return nil end
+	if not State.scriptAlive or not model or model ~= State.localTryOnModel or not model:IsDescendantOf(Workspace) then return nil end
 	if not character or not character.Parent then return nil end
 
 	local characterHip = getLocalTryOnHipReference(character)
@@ -2635,9 +2636,9 @@ end
 local function waitForCloneSitAnimationToSettle(character, model, playerHumanoid, seatPart, timeoutSeconds)
 	local deadline = os.clock() + (timeoutSeconds or 0.6)
 
-	while scriptAlive and os.clock() < deadline do
+	while State.scriptAlive and os.clock() < deadline do
 		if not character or not character.Parent or not playerHumanoid then return false end
-		if not model or model ~= localTryOnModel or not model:IsDescendantOf(Workspace) then return false end
+		if not model or model ~= State.localTryOnModel or not model:IsDescendantOf(Workspace) then return false end
 
 		local state = playerHumanoid:GetState()
 		local stillSeated = playerHumanoid.Sit
@@ -2656,47 +2657,47 @@ local function waitForCloneSitAnimationToSettle(character, model, playerHumanoid
 end
 
 local function scheduleSeatHipCalibrationAfterHeartbeat(character, model, playerHumanoid, seatPart, baseGroundOffset)
-	localTryOnSeatCalibrationToken = localTryOnSeatCalibrationToken + 1
-	local calibrationToken = localTryOnSeatCalibrationToken
-	localTryOnSeatCalibrationPending = true
+	State.localTryOnSeatCalibrationToken = State.localTryOnSeatCalibrationToken + 1
+	local calibrationToken = State.localTryOnSeatCalibrationToken
+	State.localTryOnSeatCalibrationPending = true
 
 	task.spawn(function()
 		local settled = waitForCloneSitAnimationToSettle(character, model, playerHumanoid, seatPart, 0.6)
 
-		if not scriptAlive or calibrationToken ~= localTryOnSeatCalibrationToken then return end
+		if not State.scriptAlive or calibrationToken ~= State.localTryOnSeatCalibrationToken then return end
 		if not settled then
-			localTryOnSeatCalibrationPending = false
+			State.localTryOnSeatCalibrationPending = false
 			return
 		end
-		if not model or model ~= localTryOnModel or not model:IsDescendantOf(Workspace) then
-			localTryOnSeatCalibrationPending = false
+		if not model or model ~= State.localTryOnModel or not model:IsDescendantOf(Workspace) then
+			State.localTryOnSeatCalibrationPending = false
 			return
 		end
 		if not character or not character.Parent or not playerHumanoid then
-			localTryOnSeatCalibrationPending = false
+			State.localTryOnSeatCalibrationPending = false
 			return
 		end
 
 		local state = playerHumanoid:GetState()
 		local stillSeated = playerHumanoid.Sit or playerHumanoid.SeatPart ~= nil or state == Enum.HumanoidStateType.Seated
 		if not stillSeated or playerHumanoid.SeatPart ~= seatPart then
-			localTryOnSeatCalibrationPending = false
+			State.localTryOnSeatCalibrationPending = false
 			return
 		end
 
 		local characterRoot = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
 		if not characterRoot then
-			localTryOnSeatCalibrationPending = false
+			State.localTryOnSeatCalibrationPending = false
 			return
 		end
 
 		local seatedOffset = calculateLocalTryOnSeatedHipOffset(character, model, baseGroundOffset)
 		if seatedOffset then
-			localTryOnSeatedHipOffsetLocal = getLocalTryOnSeatedHipOffsetLocal(characterRoot, seatedOffset)
-			localTryOnSeatedHipOffsetValid = true
-			localTryOnPositionMode = "Seat"
+			State.localTryOnSeatedHipOffsetLocal = getLocalTryOnSeatedHipOffsetLocal(characterRoot, seatedOffset)
+			State.localTryOnSeatedHipOffsetValid = true
+			State.localTryOnPositionMode = "Seat"
 		end
-		localTryOnSeatCalibrationPending = false
+		State.localTryOnSeatCalibrationPending = false
 	end)
 end
 
@@ -2708,7 +2709,7 @@ local function isGroundPlacementState(state)
 end
 
 local function tryOnSelectedAvatarLocally()
-	if localTryOnBuilding then return end
+	if State.localTryOnBuilding then return end
 
 	local selectedData = selectedAvatar
 	if not selectedData or not selectedData.Properties then
@@ -2729,11 +2730,11 @@ local function tryOnSelectedAvatarLocally()
 		return
 	end
 
-	tryOnActive = true
+	State.tryOnActive = true
 	stopLocalTryOn(true)
-	localTryOnBuildId = localTryOnBuildId + 1
-	local currentBuildId = localTryOnBuildId
-	localTryOnBuilding = true
+	State.localTryOnBuildId = State.localTryOnBuildId + 1
+	local currentBuildId = State.localTryOnBuildId
+	State.localTryOnBuilding = true
 	WearButton.Active = false
 	updateWearButtonState()
 	Status.Text = "[...] Building local avatar..."
@@ -2761,8 +2762,8 @@ local function tryOnSelectedAvatarLocally()
 			abortLocalTryOnForSeatedPlayer()
 			return
 		end
-		if not scriptAlive or currentBuildId ~= localTryOnBuildId then
-			localTryOnBuilding = false
+		if not State.scriptAlive or currentBuildId ~= State.localTryOnBuildId then
+			State.localTryOnBuilding = false
 			WearButton.Active = true
 			updateWearButtonState()
 			return
@@ -2775,8 +2776,8 @@ local function tryOnSelectedAvatarLocally()
 				abortLocalTryOnForSeatedPlayer()
 				return
 			end
-			if not scriptAlive or currentBuildId ~= localTryOnBuildId then
-				localTryOnBuilding = false
+			if not State.scriptAlive or currentBuildId ~= State.localTryOnBuildId then
+				State.localTryOnBuilding = false
 				WearButton.Active = true
 				updateWearButtonState()
 				return
@@ -2839,7 +2840,7 @@ local function tryOnSelectedAvatarLocally()
 				error("Generated avatar was removed or invalid immediately after entering Workspace.")
 			end
 
-			localTryOnModel = model
+			State.localTryOnModel = model
 
 			RunService.Heartbeat:Wait()
 			if seatBlockedDuringBuild() then
@@ -2857,33 +2858,33 @@ local function tryOnSelectedAvatarLocally()
 			local initialState = initialHumanoid and initialHumanoid:GetState()
 			local initiallySwimming = initialState == Enum.HumanoidStateType.Swimming
 
-			currentVerticalOffset = Vector3.zero
-			localTryOnRootPart = generatedRoot
-			localTryOnSwimOffset = calculateLocalTryOnSwimOffset(character, model, characterRoot, generatedRoot)
+			State.currentVerticalOffset = Vector3.zero
+			State.localTryOnRootPart = generatedRoot
+			State.localTryOnSwimOffset = calculateLocalTryOnSwimOffset(character, model, characterRoot, generatedRoot)
 			local cloneFeetY = getFeetBottomY(model)
-			localTryOnNeutralCloneFeetRootOffsetY = cloneFeetY and (cloneFeetY - characterRoot.Position.Y) or nil
-			localTryOnGroundOffset = calculateGroundOffsetFromCurrentPlacement(character, model, Vector3.zero)
-			if not localTryOnGroundOffset then
+			State.localTryOnNeutralCloneFeetRootOffsetY = cloneFeetY and (cloneFeetY - characterRoot.Position.Y) or nil
+			State.localTryOnGroundOffset = calculateGroundOffsetFromCurrentPlacement(character, model, Vector3.zero)
+			if not State.localTryOnGroundOffset then
 				error("Could not establish initial feet-to-feet ground alignment.")
 			end
-			localTryOnGroundOffsetValid = true
-			localTryOnSeatedHipOffsetValid = false
-			localTryOnPositionMode = "Ground"
-			localTryOnSeatCalibrationPending = false
-			localTryOnSeatCalibrationToken = localTryOnSeatCalibrationToken + 1
-			localTryOnGroundCalibrationFrames = 0
-			localTryOnSwimTransitionActive = false
-			localTryOnSwimTransitionStart = Vector3.zero
-			localTryOnSwimTransitionStartedAt = 0
-			localTryOnLastSwimming = initiallySwimming
-			localTryOnSeatPart = nil
+			State.localTryOnGroundOffsetValid = true
+			State.localTryOnSeatedHipOffsetValid = false
+			State.localTryOnPositionMode = "Ground"
+			State.localTryOnSeatCalibrationPending = false
+			State.localTryOnSeatCalibrationToken = State.localTryOnSeatCalibrationToken + 1
+			State.localTryOnGroundCalibrationFrames = 0
+			State.localTryOnSwimTransitionActive = false
+			State.localTryOnSwimTransitionStart = Vector3.zero
+			State.localTryOnSwimTransitionStartedAt = 0
+			State.localTryOnLastSwimming = initiallySwimming
+			State.localTryOnSeatPart = nil
 
-			currentVerticalOffset = initiallySwimming and localTryOnSwimOffset or localTryOnGroundOffset
-			localTryOnRootPart.CFrame = characterRoot.CFrame + currentVerticalOffset
+			State.currentVerticalOffset = initiallySwimming and State.localTryOnSwimOffset or State.localTryOnGroundOffset
+			State.localTryOnRootPart.CFrame = characterRoot.CFrame + State.currentVerticalOffset
 
 			enforceLocalTryOnNoCollision()
 			setLocalTryOnStagingVisibility(model, false)
-			localTryOnHiddenInFirstPerson = false
+			State.localTryOnHiddenInFirstPerson = false
 			setLocalTryOnFirstPersonVisibility(isFirstPersonCamera(character))
 
 			updateCloneAnims = bindAnimationSync(character, model, selectedData.Properties, selectedData.RigType)
@@ -2899,14 +2900,14 @@ local function tryOnSelectedAvatarLocally()
 			hideCharacterLocally(character)
 
 			task.spawn(function()
-				if scriptAlive and model.Parent and model:IsDescendantOf(Workspace) then
+				if State.scriptAlive and model.Parent and model:IsDescendantOf(Workspace) then
 					preloadAvatarVisualContent(model)
 				end
 			end)
 		end)
 
 		if not okSetup then
-			if localTryOnModel == model then localTryOnModel = nil end
+			if State.localTryOnModel == model then State.localTryOnModel = nil end
 			setLocalTryOnConnection("collision", nil)
 			setLocalTryOnConnection("preSimulation", nil)
 			pcall(function() model:Destroy() end)
@@ -2917,7 +2918,7 @@ local function tryOnSelectedAvatarLocally()
 			end
 		end
 
-		if okSetup and scriptAlive and currentBuildId == localTryOnBuildId and isLocalTryOnModelValid(model) then
+		if okSetup and State.scriptAlive and currentBuildId == State.localTryOnBuildId and isLocalTryOnModelValid(model) then
 			if seatBlockedDuringBuild() then
 				abortLocalTryOnForSeatedPlayer()
 				return
@@ -2926,19 +2927,19 @@ local function tryOnSelectedAvatarLocally()
 			destroyOrphanedLocalTryOnModels(model)
 			enforceLocalTryOnNoCollision()
 			setLocalTryOnConnection("buildSeat", nil)
-			localTryOnBuilding = false
+			State.localTryOnBuilding = false
 			WearButton.Active = true
 			setLocalTryOnConnection("position", RunService.RenderStepped, function()
-				if not scriptAlive then return end
+				if not State.scriptAlive then return end
 
-				if not localTryOnModel or not localTryOnModel:IsDescendantOf(Workspace) then
-					if tryOnActive and not localTryOnBuilding and not localTryOnMissingRecoveryPending then
-						localTryOnMissingRecoveryPending = true
-						local missingBuildId = localTryOnBuildId
+				if not State.localTryOnModel or not State.localTryOnModel:IsDescendantOf(Workspace) then
+					if State.tryOnActive and not State.localTryOnBuilding and not State.localTryOnMissingRecoveryPending then
+						State.localTryOnMissingRecoveryPending = true
+						local missingBuildId = State.localTryOnBuildId
 						task.delay(0.15, function()
-							localTryOnMissingRecoveryPending = false
-							if not scriptAlive or missingBuildId ~= localTryOnBuildId or localTryOnBuilding or not tryOnActive then return end
-							if not localTryOnModel or not localTryOnModel:IsDescendantOf(Workspace) then
+							State.localTryOnMissingRecoveryPending = false
+							if not State.scriptAlive or missingBuildId ~= State.localTryOnBuildId or State.localTryOnBuilding or not State.tryOnActive then return end
+							if not State.localTryOnModel or not State.localTryOnModel:IsDescendantOf(Workspace) then
 								stopLocalTryOn(false)
 								Status.Text = "[!] Local try-on was removed by this experience. Original avatar restored."
 								showDiagnostics(
@@ -2951,23 +2952,23 @@ local function tryOnSelectedAvatarLocally()
 					return
 				end
 
-				localTryOnMissingRecoveryPending = false
+				State.localTryOnMissingRecoveryPending = false
 				enforceLocalTryOnNoCollision()
 
 				if not character or not character.Parent then
-					stopLocalTryOn(tryOnActive)
+					stopLocalTryOn(State.tryOnActive)
 					updateWearButtonState()
-					if tryOnActive then Status.Text = "[...] Character respawning..." end
+					if State.tryOnActive then Status.Text = "[...] Character respawning..." end
 					return
 				end
 
 				local characterRoot = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
 				local playerHumanoid = character:FindFirstChildOfClass("Humanoid")
 
-				if not characterRoot or not localTryOnRootPart then
-					stopLocalTryOn(tryOnActive)
+				if not characterRoot or not State.localTryOnRootPart then
+					stopLocalTryOn(State.tryOnActive)
 					updateWearButtonState()
-					if tryOnActive then Status.Text = "[...] Waiting for character..." end
+					if State.tryOnActive then Status.Text = "[...] Waiting for character..." end
 					return
 				end
 
@@ -2976,108 +2977,108 @@ local function tryOnSelectedAvatarLocally()
 				local isSeated = playerHumanoid and (playerHumanoid.Sit or playerHumanoid.SeatPart ~= nil or currentState == Enum.HumanoidStateType.Seated) or false
 				local seatPart = playerHumanoid and playerHumanoid.SeatPart or nil
 
-				if not isSeated and isSwimming ~= localTryOnLastSwimming then
-					localTryOnLastSwimming = isSwimming
-					localTryOnSwimTransitionActive = isSwimming or localTryOnGroundOffsetValid
-					localTryOnSwimTransitionStart = currentVerticalOffset
-					localTryOnSwimTransitionStartedAt = os.clock()
+				if not isSeated and isSwimming ~= State.localTryOnLastSwimming then
+					State.localTryOnLastSwimming = isSwimming
+					State.localTryOnSwimTransitionActive = isSwimming or State.localTryOnGroundOffsetValid
+					State.localTryOnSwimTransitionStart = State.currentVerticalOffset
+					State.localTryOnSwimTransitionStartedAt = os.clock()
 				elseif isSeated then
-					localTryOnLastSwimming = isSwimming
-					localTryOnSwimTransitionActive = false
+					State.localTryOnLastSwimming = isSwimming
+					State.localTryOnSwimTransitionActive = false
 				end
 
 				if updateCloneAnims then updateCloneAnims() end
 
-				local targetOffset = currentVerticalOffset
+				local targetOffset = State.currentVerticalOffset
 
 				if isSeated then
-					if (localTryOnPositionMode ~= "Seat" and not localTryOnSeatCalibrationPending) or localTryOnSeatPart ~= seatPart then
-						localTryOnPositionMode = "SeatCalibration"
-						localTryOnGroundCalibrationFrames = 0
-						localTryOnSeatPart = seatPart
-						localTryOnSeatedHipOffsetValid = false
-						localTryOnSeatTransitionActive = false
-						if not localTryOnSeatCalibrationPending then
-							scheduleSeatHipCalibrationAfterHeartbeat(character, localTryOnModel, playerHumanoid, seatPart, localTryOnGroundOffset)
+					if (State.localTryOnPositionMode ~= "Seat" and not State.localTryOnSeatCalibrationPending) or State.localTryOnSeatPart ~= seatPart then
+						State.localTryOnPositionMode = "SeatCalibration"
+						State.localTryOnGroundCalibrationFrames = 0
+						State.localTryOnSeatPart = seatPart
+						State.localTryOnSeatedHipOffsetValid = false
+						State.localTryOnSeatTransitionActive = false
+						if not State.localTryOnSeatCalibrationPending then
+							scheduleSeatHipCalibrationAfterHeartbeat(character, State.localTryOnModel, playerHumanoid, seatPart, State.localTryOnGroundOffset)
 						end
 					end
 
-					if localTryOnSeatedHipOffsetValid then
-						if not localTryOnSeatTransitionActive then
-							localTryOnSeatTransitionActive = true
-							localTryOnSeatTransitionStartLocal = characterRoot.CFrame:VectorToObjectSpace(currentVerticalOffset)
-							localTryOnSeatTransitionStartedAt = os.clock()
+					if State.localTryOnSeatedHipOffsetValid then
+						if not State.localTryOnSeatTransitionActive then
+							State.localTryOnSeatTransitionActive = true
+							State.localTryOnSeatTransitionStartLocal = characterRoot.CFrame:VectorToObjectSpace(State.currentVerticalOffset)
+							State.localTryOnSeatTransitionStartedAt = os.clock()
 						end
 
-						local alpha = math.clamp((os.clock() - localTryOnSeatTransitionStartedAt) / 0.16, 0, 1)
+						local alpha = math.clamp((os.clock() - State.localTryOnSeatTransitionStartedAt) / 0.16, 0, 1)
 						local eased = alpha * alpha * (3 - 2 * alpha)
-						local blendedLocalOffset = localTryOnSeatTransitionStartLocal:Lerp(localTryOnSeatedHipOffsetLocal, eased)
+						local blendedLocalOffset = State.localTryOnSeatTransitionStartLocal:Lerp(State.localTryOnSeatedHipOffsetLocal, eased)
 						targetOffset = characterRoot.CFrame:VectorToWorldSpace(blendedLocalOffset)
 					else
-						targetOffset = currentVerticalOffset
+						targetOffset = State.currentVerticalOffset
 					end
 				else
-					if localTryOnPositionMode == "Seat" or localTryOnPositionMode == "SeatCalibration" then
-						localTryOnSeatCalibrationToken = localTryOnSeatCalibrationToken + 1
-						localTryOnSeatCalibrationPending = false
-						localTryOnSeatPart = nil
-						localTryOnSeatedHipOffsetValid = false
-						localTryOnSeatTransitionActive = false
-						localTryOnSeatTransitionStartLocal = Vector3.zero
-						localTryOnSeatTransitionStartedAt = 0
-						if localTryOnGroundOffsetValid then
-							localTryOnPositionMode = "Ground"
-							localTryOnGroundCalibrationFrames = 0
-							targetOffset = isSwimming and localTryOnSwimOffset or localTryOnGroundOffset
+					if State.localTryOnPositionMode == "Seat" or State.localTryOnPositionMode == "SeatCalibration" then
+						State.localTryOnSeatCalibrationToken = State.localTryOnSeatCalibrationToken + 1
+						State.localTryOnSeatCalibrationPending = false
+						State.localTryOnSeatPart = nil
+						State.localTryOnSeatedHipOffsetValid = false
+						State.localTryOnSeatTransitionActive = false
+						State.localTryOnSeatTransitionStartLocal = Vector3.zero
+						State.localTryOnSeatTransitionStartedAt = 0
+						if State.localTryOnGroundOffsetValid then
+							State.localTryOnPositionMode = "Ground"
+							State.localTryOnGroundCalibrationFrames = 0
+							targetOffset = isSwimming and State.localTryOnSwimOffset or State.localTryOnGroundOffset
 						else
-							localTryOnPositionMode = "GroundCalibration"
-							localTryOnGroundCalibrationFrames = 2
+							State.localTryOnPositionMode = "GroundCalibration"
+							State.localTryOnGroundCalibrationFrames = 2
 						end
 					end
 
-					if localTryOnPositionMode == "GroundCalibration" then
+					if State.localTryOnPositionMode == "GroundCalibration" then
 						if not isSwimming and isGroundPlacementState(currentState) then
 							if not isPlayerSitAnimationCleared(character) then
-								localTryOnGroundCalibrationFrames = 2
-							elseif localTryOnGroundCalibrationFrames > 0 then
-								localTryOnGroundCalibrationFrames = localTryOnGroundCalibrationFrames - 1
+								State.localTryOnGroundCalibrationFrames = 2
+							elseif State.localTryOnGroundCalibrationFrames > 0 then
+								State.localTryOnGroundCalibrationFrames = State.localTryOnGroundCalibrationFrames - 1
 							end
-							if localTryOnGroundCalibrationFrames == 0 and isPlayerSitAnimationCleared(character) then
+							if State.localTryOnGroundCalibrationFrames == 0 and isPlayerSitAnimationCleared(character) then
 								local groundOffset = calculateGroundOffsetFromNeutralCloneFeet(character, characterRoot)
 								if groundOffset then
-									localTryOnGroundOffset = groundOffset
-									localTryOnGroundOffsetValid = true
-									localTryOnPositionMode = "Ground"
+									State.localTryOnGroundOffset = groundOffset
+									State.localTryOnGroundOffsetValid = true
+									State.localTryOnPositionMode = "Ground"
 									targetOffset = groundOffset
 								else
-									localTryOnGroundCalibrationFrames = 1
+									State.localTryOnGroundCalibrationFrames = 1
 								end
 							end
 						else
-							localTryOnGroundCalibrationFrames = 2
+							State.localTryOnGroundCalibrationFrames = 2
 						end
-						targetOffset = (localTryOnPositionMode == "Ground") and localTryOnGroundOffset or targetOffset
+						targetOffset = (State.localTryOnPositionMode == "Ground") and State.localTryOnGroundOffset or targetOffset
 					elseif isSwimming then
-						local desiredSwimOffset = localTryOnSwimOffset
-						if localTryOnSwimTransitionActive then
-							local alpha = math.clamp((os.clock() - localTryOnSwimTransitionStartedAt) / 0.16, 0, 1)
+						local desiredSwimOffset = State.localTryOnSwimOffset
+						if State.localTryOnSwimTransitionActive then
+							local alpha = math.clamp((os.clock() - State.localTryOnSwimTransitionStartedAt) / 0.16, 0, 1)
 							local eased = alpha * alpha * (3 - 2 * alpha)
-							targetOffset = localTryOnSwimTransitionStart:Lerp(desiredSwimOffset, eased)
+							targetOffset = State.localTryOnSwimTransitionStart:Lerp(desiredSwimOffset, eased)
 							if alpha >= 1 then
-								localTryOnSwimTransitionActive = false
+								State.localTryOnSwimTransitionActive = false
 								targetOffset = desiredSwimOffset
 							end
 						else
 							targetOffset = desiredSwimOffset
 						end
 					else
-						local desiredGroundOffset = localTryOnGroundOffset
-						if localTryOnSwimTransitionActive then
-							local alpha = math.clamp((os.clock() - localTryOnSwimTransitionStartedAt) / 0.16, 0, 1)
+						local desiredGroundOffset = State.localTryOnGroundOffset
+						if State.localTryOnSwimTransitionActive then
+							local alpha = math.clamp((os.clock() - State.localTryOnSwimTransitionStartedAt) / 0.16, 0, 1)
 							local eased = alpha * alpha * (3 - 2 * alpha)
-							targetOffset = localTryOnSwimTransitionStart:Lerp(desiredGroundOffset, eased)
+							targetOffset = State.localTryOnSwimTransitionStart:Lerp(desiredGroundOffset, eased)
 							if alpha >= 1 then
-								localTryOnSwimTransitionActive = false
+								State.localTryOnSwimTransitionActive = false
 								targetOffset = desiredGroundOffset
 							end
 						else
@@ -3086,8 +3087,8 @@ local function tryOnSelectedAvatarLocally()
 					end
 				end
 
-				currentVerticalOffset = targetOffset
-				localTryOnRootPart.CFrame = characterRoot.CFrame + currentVerticalOffset
+				State.currentVerticalOffset = targetOffset
+				State.localTryOnRootPart.CFrame = characterRoot.CFrame + State.currentVerticalOffset
 
 				enforceCharacterHidden()
 				setLocalTryOnFirstPersonVisibility(isFirstPersonCamera(character))
@@ -3100,31 +3101,31 @@ local function tryOnSelectedAvatarLocally()
 
 		lastTryOnError = tostring(setupError)
 		pcall(function() model:Destroy() end)
-		localTryOnModel = nil
-		localTryOnRootPart = nil
-		localTryOnGroundOffset = Vector3.zero
-		localTryOnSwimOffset = Vector3.zero
-		currentVerticalOffset = Vector3.zero
-		localTryOnSeatedHipOffsetValid = false
-		localTryOnSeatPart = nil
-		localTryOnPositionMode = "Ground"
-		localTryOnSeatCalibrationPending = false
-		localTryOnSeatCalibrationToken = localTryOnSeatCalibrationToken + 1
+		State.localTryOnModel = nil
+		State.localTryOnRootPart = nil
+		State.localTryOnGroundOffset = Vector3.zero
+		State.localTryOnSwimOffset = Vector3.zero
+		State.currentVerticalOffset = Vector3.zero
+		State.localTryOnSeatedHipOffsetValid = false
+		State.localTryOnSeatPart = nil
+		State.localTryOnPositionMode = "Ground"
+		State.localTryOnSeatCalibrationPending = false
+		State.localTryOnSeatCalibrationToken = State.localTryOnSeatCalibrationToken + 1
 		resetLocalTryOnState()
 		disconnectLocalTryOnConnections()
 	end
 
 	setLocalTryOnConnection("buildSeat", nil)
-	localTryOnBuilding = false
+	State.localTryOnBuilding = false
 	WearButton.Active = true
 	updateWearButtonState()
 	showDiagnostics("Local try-on failed.", lastTryOnError)
 end
 
 local function toggleLocalTryOn()
-	if localTryOnBuilding then return end
-	if localTryOnModel or tryOnActive then
-		tryOnActive = false
+	if State.localTryOnBuilding then return end
+	if State.localTryOnModel or State.tryOnActive then
+		State.tryOnActive = false
 		stopLocalTryOn(false)
 		updateWearButtonState()
 		Status.Text = "Local try-on cleared."
@@ -3135,8 +3136,8 @@ local function toggleLocalTryOn()
 end
 
 local function bindCharacterLifecycle(character)
-	disconnectConnection(deathConnection)
-	deathConnection = nil
+	disconnectConnection(State.deathConnection)
+	State.deathConnection = nil
 
 	if not character then return end
 
@@ -3144,10 +3145,10 @@ local function bindCharacterLifecycle(character)
 		local humanoid = character:WaitForChild("Humanoid", 10)
 		local root = character:WaitForChild("HumanoidRootPart", 10)
 
-		if not humanoid or not root or not scriptAlive then return end
+		if not humanoid or not root or not State.scriptAlive then return end
 
-		deathConnection = humanoid.Died:Connect(function()
-			if tryOnActive or localTryOnModel or localTryOnBuilding then
+		State.deathConnection = humanoid.Died:Connect(function()
+			if State.tryOnActive or State.localTryOnModel or State.localTryOnBuilding then
 				stopLocalTryOn(true)
 				WearButton.Active = false
 				updateWearButtonState()
@@ -3155,9 +3156,9 @@ local function bindCharacterLifecycle(character)
 			end
 		end)
 
-		if tryOnActive and selectedAvatar and scriptAlive then
+		if State.tryOnActive and selectedAvatar and State.scriptAlive then
 			task.wait(0.15)
-			if scriptAlive and LocalPlayer.Character == character then
+			if State.scriptAlive and LocalPlayer.Character == character then
 				tryOnSelectedAvatarLocally()
 			end
 		else
@@ -3167,15 +3168,15 @@ local function bindCharacterLifecycle(character)
 	end)
 end
 
-characterAddedConnection = LocalPlayer.CharacterAdded:Connect(bindCharacterLifecycle)
+State.characterAddedConnection = LocalPlayer.CharacterAdded:Connect(bindCharacterLifecycle)
 
 wire(WearButton.Activated, toggleLocalTryOn)
 
 wire(SearchBox:GetPropertyChangedSignal("Text"), function()
-	if not scriptAlive then return end
-	if searchDebounceThread then task.cancel(searchDebounceThread) searchDebounceThread = nil end
-	searchDebounceThread = task.delay(0.15, function()
-		if scriptAlive then filterAvatarCards(SearchBox.Text) end
+	if not State.scriptAlive then return end
+	if State.searchDebounceThread then task.cancel(State.searchDebounceThread) State.searchDebounceThread = nil end
+	State.searchDebounceThread = task.delay(0.15, function()
+		if State.scriptAlive then filterAvatarCards(SearchBox.Text) end
 	end)
 end)
 
@@ -3261,7 +3262,7 @@ if LocalPlayer.Character then bindCharacterLifecycle(LocalPlayer.Character) end
 loadSavedAvatars()
 populateAvatarList()
 task.defer(function()
-	if scriptAlive and not previewQueueRunning then task.spawn(processPreviewQueue) end
+	if State.scriptAlive and not previewQueueRunning then task.spawn(processPreviewQueue) end
 end)
 
 end)
